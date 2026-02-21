@@ -1,0 +1,473 @@
+<!-- frontend/index.html -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WardrobeWizard - AI Stylist</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #00b4db, #0083b0);
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+      }
+      .navbar {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .closet-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 20px;
+      }
+      .clothing-item {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition:
+          transform 0.3s,
+          box-shadow 0.3s;
+      }
+      .clothing-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+      }
+      .clothing-item img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+      }
+      .item-info {
+        padding: 15px;
+      }
+      .color-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+        border: 1px solid #ddd;
+      }
+      .outfit-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .weather-widget {
+        background: var(--secondary-gradient);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        transition: transform 0.3s;
+      }
+      .weather-widget:hover {
+        transform: scale(1.02);
+      }
+      .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 15px;
+        padding: 60px 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: white;
+      }
+      .upload-area:hover {
+        border-color: #667eea;
+        background: #f0f2ff;
+      }
+      .nav-tabs .nav-link {
+        border: none;
+        color: #666;
+        font-weight: 500;
+        padding: 12px 24px;
+      }
+      .nav-tabs .nav-link.active {
+        color: #764ba2;
+        border-bottom: 3px solid #764ba2;
+        background: transparent;
+      }
+      .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <i class="fas fa-magic me-2"></i>
+          <strong>WardrobeWizard</strong>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" data-tab="closet-tab"
+                >My Closet</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-tab="outfit-tab"
+                >Today's Outfit</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-tab="analytics-tab"
+                >Analytics</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <!-- Weather Widget -->
+      <div class="weather-widget" id="weatherWidget">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <h2 class="display-4">
+              <i class="fas fa-cloud-sun shadow-sm"></i>
+              <span id="weatherTemp">--</span>°C
+            </h2>
+            <p class="lead" id="weatherDesc">Fetching current weather...</p>
+          </div>
+          <div class="col-md-6 text-end">
+            <button
+              class="btn btn-light btn-lg px-4"
+              onclick="generateOutfit()"
+            >
+              <i class="fas fa-sparkles me-2 text-primary"></i> Get Styling
+              Advice
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Tabs -->
+      <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            id="closet-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#closet"
+            type="button"
+          >
+            <i class="fas fa-tshirt me-2"></i> Closet
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="outfit-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#outfit"
+            type="button"
+          >
+            <i class="fas fa-magic me-2"></i> Styling
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="analytics-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#analytics"
+            type="button"
+          >
+            <i class="fas fa-chart-line me-2"></i> Insights
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Closet Tab -->
+        <div class="tab-pane fade show active" id="closet" role="tabpanel">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="card mb-4">
+                <div class="card-body p-0">
+                  <div
+                    class="upload-area"
+                    onclick="document.getElementById('fileInput').click()"
+                  >
+                    <i class="fas fa-camera fa-3x mb-3 text-muted"></i>
+                    <h4>Add to Closet</h4>
+                    <p class="text-muted">
+                      Snap a photo and let AI do the rest
+                    </p>
+                    <input
+                      type="file"
+                      id="fileInput"
+                      accept="image/*"
+                      style="display: none"
+                      onchange="handleImageUpload(this)"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body">
+                  <h5>Quick Filters</h5>
+                  <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-sm btn-outline-secondary">
+                      Tops
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary">
+                      Bottoms
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary">
+                      Shoes
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary">
+                      Winter
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary">
+                      Summer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="closet-grid" id="closetGrid">
+                <!-- Items placeholder -->
+                <div class="text-center py-5">
+                  <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                  <p class="mt-2 text-muted">Loading your wardrobe...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Outfit Tab -->
+        <div class="tab-pane fade" id="outfit" role="tabpanel">
+          <div class="row">
+            <div class="col-md-8">
+              <div id="outfitDisplay">
+                <div class="text-center py-5">
+                  <h3>Ready for a new look?</h3>
+                  <p>Select an occasion and click "Generate New Outfit"</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-body">
+                  <h5>Occasion</h5>
+                  <select
+                    class="form-select form-select-lg mb-4"
+                    id="occasionSelect"
+                  >
+                    <option value="casual">Casual Day Out</option>
+                    <option value="formal">Formal Event</option>
+                    <option value="date">Date Night</option>
+                    <option value="interview">Job Interview</option>
+                    <option value="workout">Workout Session</option>
+                  </select>
+                  <button
+                    class="btn btn-primary btn-lg w-100"
+                    onclick="generateOutfit()"
+                  >
+                    Generate New Outfit
+                  </button>
+                  <div
+                    id="weatherAdvice"
+                    class="mt-4 p-3 bg-light rounded d-none"
+                  >
+                    <small class="text-muted uppercase fw-bold"
+                      >Weather Tip</small
+                    >
+                    <p class="mb-0" id="weatherAdviceText"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-pane fade" id="analytics" role="tabpanel">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card mb-4">
+                <div class="card-body">
+                  <h5 class="card-title">Wardrobe Composition</h5>
+                  <canvas id="categoryChart" height="300"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card mb-4">
+                <div class="card-body">
+                  <h5 class="card-title">Dominant Colors</h5>
+                  <canvas id="colorChart" height="300"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card border-top border-4 border-warning">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-lightbulb text-warning fa-2x me-3"></i>
+                <h5 class="mb-0">Wardrobe Insights</h5>
+              </div>
+              <div id="insights">
+                <p class="text-muted">Analyzing your style patterns...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div class="modal fade" id="addItemModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">Confirm AI Classification</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="row">
+              <div class="col-md-5">
+                <img
+                  id="imagePreview"
+                  src=""
+                  class="img-fluid rounded shadow-sm mb-3"
+                />
+              </div>
+              <div class="col-md-7">
+                <form id="addItemForm">
+                  <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="itemName"
+                      required
+                    />
+                  </div>
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Category</label>
+                      <select class="form-select" id="itemCategory">
+                        <option value="shirt">Shirt</option>
+                        <option value="t-shirt">T-Shirt</option>
+                        <option value="pants">Pants</option>
+                        <option value="jeans">Jeans</option>
+                        <option value="shoes">Shoes</option>
+                        <option value="jacket">Jacket</option>
+                        <option value="dress">Dress</option>
+                        <option value="accessory">Accessory</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Style</label>
+                      <select class="form-select" id="itemStyle">
+                        <option value="casual">Casual</option>
+                        <option value="formal">Formal</option>
+                        <option value="athletic">Athletic</option>
+                        <option value="business">Business</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label d-block">Color</label>
+                    <input
+                      type="color"
+                      class="form-control form-control-color w-100"
+                      id="itemColor"
+                      value="#000000"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Pattern</label>
+                    <select class="form-select" id="itemPattern">
+                      <option value="solid">Solid</option>
+                      <option value="patterned">Patterned</option>
+                      <option value="striped">Striped</option>
+                      <option value="floral">Floral</option>
+                    </select>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              data-bs-dismiss="modal"
+            >
+              Retake Photo
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary px-4"
+              onclick="saveItem()"
+            >
+              Save to Closet
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UI Overlay for loading -->
+    <div
+      id="loadingOverlay"
+      class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none z-index-modal"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1060;
+      "
+    >
+      <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <h5 id="loadingMessage">Processing...</h5>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
