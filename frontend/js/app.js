@@ -6,7 +6,7 @@
 // ╚══════════════════════════════════════════════╝
 const API_BASE_URL = window.location.hostname === 'localhost'
   ? ''                              // local: use relative /api/ paths (Nginx proxy)
-  : 'https://YOUR-BACKEND-URL.onrender.com'; // ← replace after deploying backend
+  : 'https://wardrobewizard-backend-m1ew.onrender.com'; // ← replace after deploying backend
 
 let userItems = [];
 let currentOutfit = null;
@@ -399,3 +399,4 @@ function fixHex(color) {
 function saveOutfitSession() {
     showToast('Outfit logged! Have a great day.', 'success');
 }
+
