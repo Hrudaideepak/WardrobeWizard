@@ -1,22 +1,13 @@
 # backend/services/analytics.py
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime, timedelta
+from psycopg2.extras import RealDictCursor
+from services.db_service import get_db_connection
 
 class WardrobeAnalytics:
     def __init__(self, user_id):
         self.user_id = user_id
-        database_url = os.environ.get('DATABASE_URL')
-        if database_url:
-            self.conn = psycopg2.connect(database_url)
-        else:
-            self.conn = psycopg2.connect(
-                host=os.environ.get('DB_HOST', 'localhost'),
-                database=os.environ.get('DB_NAME', 'wardrobewizard'),
-                user=os.environ.get('DB_USER', 'postgres'),
-                password=os.environ.get('DB_PASSWORD', 'password')
-            )
+        self.conn = get_db_connection()
     
     def get_most_worn(self, limit=10):
         """Get the most worn items"""

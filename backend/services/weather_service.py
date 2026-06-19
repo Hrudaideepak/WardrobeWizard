@@ -10,6 +10,47 @@ class WeatherService:
     
     def get_weather(self, lat, lon):
         """Get current weather for location"""
+        if not self.api_key:
+            # Fallback to free Open-Meteo API (requires NO API key)
+            try:
+                url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+                response = requests.get(url, timeout=5)
+                data = response.json()
+                current = data.get('current_weather', {})
+                temp = current.get('temperature', 20.0)
+                code = current.get('weathercode', 0)
+                
+                # Map WMO weathercode to OpenWeather-style main/description
+                main_cond = "Clear"
+                desc = "clear sky"
+                if code in [1, 2, 3]:
+                    main_cond = "Clouds"
+                    desc = "partly cloudy"
+                elif code in [45, 48]:
+                    main_cond = "Fog"
+                    desc = "foggy"
+                elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
+                    main_cond = "Rain"
+                    desc = "rain"
+                elif code in [71, 73, 75, 77, 85, 86]:
+                    main_cond = "Snow"
+                    desc = "snow"
+                elif code in [95, 96, 99]:
+                    main_cond = "Thunderstorm"
+                    desc = "thunderstorm"
+                
+                return {
+                    'main': {'temp': temp},
+                    'weather': [{'main': main_cond, 'description': desc}]
+                }
+            except Exception as e:
+                print(f"Open-Meteo fallback error: {e}")
+                # Mock response if offline or failed
+                return {
+                    'main': {'temp': 20.0},
+                    'weather': [{'main': 'Clear', 'description': 'clear sky'}]
+                }
+
         url = f"{self.base_url}/weather"
         params = {
             'lat': lat,
@@ -23,6 +64,8 @@ class WeatherService:
     
     def get_forecast(self, lat, lon, days=5):
         """Get weather forecast"""
+        if not self.api_key:
+            return {'list': []}
         url = f"{self.base_url}/forecast"
         params = {
             'lat': lat,

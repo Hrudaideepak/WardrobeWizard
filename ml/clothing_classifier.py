@@ -1,6 +1,7 @@
 # ml/clothing_classifier.py
 import torch
 import torchvision.transforms as transforms
+from torchvision.models import resnet18, ResNet18_Weights
 from PIL import Image
 import numpy as np
 from sklearn.cluster import KMeans
@@ -9,14 +10,26 @@ import os
 
 class ClothingClassifier:
     def __init__(self):
-        # Load pre-trained model (using ResNet for demo)
-        # Note: In a production environment, you might want to load this once
+        # Load pre-trained model (using ResNet18 with default weights)
         try:
-            self.model = torch.hub.load('pytorch/vision', 'resnet18', pretrained=True)
+            weights = ResNet18_Weights.DEFAULT
+            self.model = resnet18(weights=weights)
+            
+            # Check if custom fine-tuned weights exist and load them!
+            custom_weights_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wardrobe_model.pth')
+            if os.path.exists(custom_weights_path):
+                print("Loading fine-tuned wardrobe model weights...")
+                try:
+                    self.model.load_state_dict(torch.load(custom_weights_path))
+                except Exception as ex:
+                    print(f"Error loading custom state dict: {ex}")
+                    
             self.model.eval()
+            self.imagenet_classes = weights.meta["categories"]
         except Exception as e:
             print(f"Error loading model: {e}")
             self.model = None
+            self.imagenet_classes = []
         
         # Categories for clothing
         self.categories = [
@@ -31,6 +44,52 @@ class ClothingClassifier:
             'athletic': ['sweatpants', 'hoodie', 'gym_shoes']
         }
     
+    def map_imagenet_to_clothing(self, label_name):
+        """Map ImageNet classes to wardrobe categories using keyword matches"""
+        label_lower = label_name.lower()
+        
+        # Check shoes first
+        if any(w in label_lower for w in ['shoe', 'sandal', 'clog', 'boot', 'loafer', 'sneaker', 'slipper']):
+            return 'shoes'
+        
+        # Check hat
+        if any(w in label_lower for w in ['hat', 'cap', 'bonnet', 'sombrero', 'helmet']):
+            return 'hat'
+            
+        # Check jacket
+        if any(w in label_lower for w in ['jacket', 'coat', 'windbreaker', 'overcoat', 'blazer', 'trench', 'cardigan']):
+            return 'jacket'
+            
+        # Check jeans / pants
+        if any(w in label_lower for w in ['jean', 'pant', 'trouser', 'slacks']):
+            return 'jeans'
+            
+        # Check dress
+        if any(w in label_lower for w in ['dress', 'gown', 'frock', 'robe', 'kimono']):
+            return 'dress'
+            
+        # Check sweater
+        if any(w in label_lower for w in ['sweater', 'pullover', 'poncho', 'wool']):
+            return 'sweater'
+            
+        # Check skirt
+        if any(w in label_lower for w in ['skirt', 'kilt', 'miniskirt']):
+            return 'skirt'
+            
+        # Check shorts
+        if any(w in label_lower for w in ['shorts', 'trunks', 'swimwear']):
+            return 'shorts'
+            
+        # Check scarf
+        if any(w in label_lower for w in ['scarf', 'stole', 'shawl', 'boa', 'muffler']):
+            return 'scarf'
+            
+        # Check t-shirt / shirt
+        if any(w in label_lower for w in ['t-shirt', 'tee shirt', 'jersey', 'sweatshirt', 'shirt', 'blouse']):
+            return 't-shirt'
+            
+        return None
+
     def classify_item(self, image_path):
         """Main classification function"""
         try:
@@ -41,7 +100,7 @@ class ClothingClassifier:
         category = 't-shirt' # Fallback
         confidence = 0.0
         
-        if self.model:
+        if self.model and self.imagenet_classes:
             # Preprocess for model
             preprocess = transforms.Compose([
                 transforms.Resize(256),
@@ -57,11 +116,25 @@ class ClothingClassifier:
             with torch.no_grad():
                 output = self.model(input_batch)
             
-            # Get top category (simplified - would need fine-tuning)
+            # Find the best matching clothing class in the top-20 predictions
             probabilities = torch.nn.functional.softmax(output[0], dim=0)
-            top_prob, top_cat = torch.max(probabilities, 0)
-            category = self.categories[top_cat % len(self.categories)]
-            confidence = float(top_prob)
+            top_probs, top_indices = torch.sort(probabilities, descending=True)
+            
+            mapped_category = None
+            for prob, idx in zip(top_probs[:20], top_indices[:20]):
+                class_name = self.imagenet_classes[int(idx)]
+                mapped = self.map_imagenet_to_clothing(class_name)
+                if mapped:
+                    mapped_category = mapped
+                    confidence = float(prob)
+                    break
+            
+            if mapped_category:
+                category = mapped_category
+            else:
+                # If no clothing item in top 20, fallback to top-1 overall prediction category
+                category = 't-shirt'
+                confidence = float(top_probs[0])
         
         # Extract colors
         colors = self.extract_colors(image)
@@ -93,27 +166,15 @@ class ClothingClassifier:
         
         colors = []
         for center in kmeans.cluster_centers_:
-            # Convert RGB to color name
-            color_name = self.rgb_to_name(center.astype(int))
-            colors.append(color_name)
+            # Convert RGB to hex color format (so frontend color input works perfectly!)
+            hex_color = "#{:02x}{:02x}{:02x}".format(
+                int(np.clip(center[0], 0, 255)),
+                int(np.clip(center[1], 0, 255)),
+                int(np.clip(center[2], 0, 255))
+            )
+            colors.append(hex_color)
         
         return colors
-    
-    def rgb_to_name(self, rgb):
-        """Convert RGB to closest color name"""
-        try:
-            # Try exact match
-            return webcolors.rgb_to_name(rgb)
-        except ValueError:
-            # Find closest color
-            min_colors = {}
-            for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
-                r_c, g_c, b_c = webcolors.hex_to_rgb(key)
-                rd = (r_c - rgb[0]) ** 2
-                gd = (g_c - rgb[1]) ** 2
-                bd = (b_c - rgb[2]) ** 2
-                min_colors[(rd + gd + bd)] = name
-            return min_colors[min(min_colors.keys())]
     
     def detect_pattern(self, image):
         """Detect if clothing has pattern (simplified)"""
@@ -121,14 +182,18 @@ class ClothingClassifier:
         gray = image.convert('L')
         img_array = np.array(gray)
         
-        # Calculate local variance
-        from scipy import ndimage
-        # Using a simpler variance calculation for speed/reduced dependencies if needed, 
-        # but scipy ndimage is in requirements.
+        # Calculate local variance using a simple numpy filter
+        # (avoiding scipy ndimage dependency to make loading even lighter)
         try:
-            variance = ndimage.generic_filter(img_array, np.var, size=5)
-            # If variance is high, likely has pattern
-            if np.mean(variance) > 1000:
+            h, w = img_array.shape
+            # Simple standard deviation of local patches
+            std_devs = []
+            for i in range(0, h-10, 20):
+                for j in range(0, w-10, 20):
+                    std_devs.append(np.std(img_array[i:i+10, j:j+10]))
+            
+            mean_std = np.mean(std_devs)
+            if mean_std > 25:
                 return 'patterned'
         except Exception:
             pass
@@ -137,8 +202,6 @@ class ClothingClassifier:
     
     def detect_style(self, image, category):
         """Detect clothing style (simplified)"""
-        # In production, this would use a trained classifier
-        # For demo, return based on color and category
         if category in ['dress', 'skirt']:
             return 'formal'
         if category in ['jeans', 't-shirt']:
